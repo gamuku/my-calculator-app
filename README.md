@@ -57,6 +57,6 @@ https://<username>.github.io/time-calculator/
 ## Project structure
 ```text
 work-duration-calculator/ 
-├── work_duration_calc_app.html 
+├── index.html 
 └── README.md
 ```
