@@ -8,26 +8,62 @@
     textarea { width: 100%; height: 150px; font-size: 1rem; }
     .result { margin-top: 1rem; font-size: 1.2rem; font-weight: bold; }
     button { margin-top: 0.5rem; padding: 0.5rem 1rem; cursor: pointer; }
-    .tests { margin-top: 1rem; padding: 1rem; background: #f9f9f9; border-radius: 6px; }
+    .tabs { margin-top: 1.5rem; }
+    .tab-buttons button {
+      padding: 0.5rem 1rem;
+      margin-right: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px 4px 0 0;
+      background: #f0f0f0;
+      cursor: pointer;
+    }
+    .tab-buttons button.active {
+      background: #fff;
+      border-bottom: 1px solid #fff;
+      font-weight: bold;
+    }
+    .tab-content {
+      border: 1px solid #ccc;
+      border-radius: 0 6px 6px 6px;
+      padding: 1rem;
+      background: #fff;
+      margin-top: -1px;
+    }
+    .hidden { display: none; }
     .pass { color: green; font-weight: bold; }
     .fail { color: red; font-weight: bold; }
   </style>
 </head>
 <body>
   <h1>Work Duration Calculator ⏱️</h1>
-  <p>Enter time intervals or durations (e.g. <code>10:00 - 11:30</code> or <code>1:30</code>):</p>
-  <textarea id="inputArea" placeholder="Examples:
+
+  <div class="tabs">
+    <!-- Tab buttons -->
+    <div class="tab-buttons">
+      <button id="calcTabBtn" class="active" onclick="showTab('calculator')">Calculator</button>
+      <button id="testTabBtn" onclick="showTab('tests')">Tests</button>
+    </div>
+
+    <!-- Calculator Tab -->
+    <div id="calculator" class="tab-content">
+      <p>Enter time intervals or durations (e.g. <code>10:00 - 11:30</code> or <code>1:30</code>):</p>
+      <textarea id="inputArea" placeholder="Examples:
 10:00 - 11:30
 12:00 - 14:50
 16:00 - 22:00
 1:30
 90"></textarea>
-  <div class="result">Total: <span id="output">00:00:00</span></div>
-  <button onclick="copyResult()">Copy</button>
+      <div class="result">Total: <span id="output">00:00:00</span></div>
+      <button onclick="copyResult()">Copy</button>
+    </div>
 
-  <h2>✅ Test Results</h2>
-  <button onclick="runTests()">Run Tests</button>
-  <div id="testResults" class="tests"></div>
+    <!-- Tests Tab -->
+    <div id="tests" class="tab-content hidden">
+      <h2>✅ Test Results</h2>
+      <button onclick="runTests()">Run Tests</button>
+      <div id="testResults"></div>
+    </div>
+  </div>
 
   <script>
     function parseTime(str) {
@@ -37,7 +73,7 @@
       } else if (parts.length === 3) {
         return parts[0] * 3600 + parts[1] * 60 + parts[2];
       } else if (!isNaN(str)) {
-        return parseInt(str, 10) * 60; // raw number = minutes
+        return parseInt(str, 10) * 60;
       }
       return 0;
     }
@@ -80,9 +116,7 @@
 
     document.getElementById("inputArea").addEventListener("input", calculate);
 
-    // -------------------
-    // ✅ Unit Tests
-    // -------------------
+    // Tests
     function runTests() {
       const tests = [
         { input: ["10:00 - 11:30"], expected: "01:30:00" },
@@ -115,7 +149,20 @@
       document.getElementById("testResults").innerHTML = output;
     }
 
-    runTests();
+    // Tab switching
+    function showTab(tab) {
+      document.getElementById("calculator").classList.add("hidden");
+      document.getElementById("tests").classList.add("hidden");
+      document.getElementById(tab).classList.remove("hidden");
+
+      document.getElementById("calcTabBtn").classList.remove("active");
+      document.getElementById("testTabBtn").classList.remove("active");
+      if (tab === "calculator") {
+        document.getElementById("calcTabBtn").classList.add("active");
+      } else {
+        document.getElementById("testTabBtn").classList.add("active");
+      }
+    }
   </script>
 </body>
 </html>
