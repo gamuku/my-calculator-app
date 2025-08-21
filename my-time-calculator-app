@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Time Interval Calculator</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2em; }
+    textarea { width: 100%; height: 150px; }
+    .result { margin-top: 1em; font-size: 1.2em; }
+    button { margin-top: 0.5em; }
+  </style>
+</head>
+<body>
+  <h1>Time Interval Calculator ⏱️</h1>
+  <p>Enter times (HH:MM, HH:MM:SS, or plain numbers):</p>
+  <textarea id="input"></textarea><br>
+  
+  <label>
+    <input type="radio" name="mode" value="minutes" checked>
+    Plain numbers = minutes
+  </label>
+  <label>
+    <input type="radio" name="mode" value="seconds">
+    Plain numbers = seconds
+  </label>
+
+  <div class="result">
+    <strong>Total:</strong> 
+    <span id="output">00:00:00</span>
+    (<span id="minutes">0 minutes</span>)
+  </div>
+  <button id="copyBtn">Copy Result</button>
+
+  <script>
+    const input = document.getElementById('input');
+    const output = document.getElementById('output');
+    const minutesText = document.getElementById('minutes');
+    const copyBtn = document.getElementById('copyBtn');
+    const radios = document.querySelectorAll('input[name="mode"]');
+
+    function parseTime(str, mode) {
+      str = str.trim();
+      if (!str) return 0;
+      if (/^\d+$/.test(str)) {
+        let num = parseInt(str, 10);
+        return mode === "seconds" ? num : num * 60;
+      }
+      const parts = str.split(":").map(Number);
+      if (parts.length === 2) {
+        return parts[0] * 3600 + parts[1] * 60;
+      } else if (parts.length === 3) {
+        return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      }
+      return 0;
+    }
+
+    function formatTime(seconds) {
+      const h = String(Math.floor(seconds / 3600)).padStart(2, "0");
+      const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
+      const s = String(seconds % 60).padStart(2, "0");
+      return `${h}:${m}:${s}`;
+    }
+
+    function calculate() {
+      const mode = document.querySelector('input[name="mode"]:checked').value;
+      const lines = input.value.split(/\n+/);
+      let totalSeconds = 0;
+      for (const line of lines) totalSeconds += parseTime(line, mode);
+      output.textContent = formatTime(totalSeconds);
+      minutesText.textContent = Math.floor(totalSeconds / 60) + " minutes";
+    }
+
+    input.addEventListener("input", calculate);
+    radios.forEach(r => r.addEventListener("change", calculate));
+
+    copyBtn.addEventListener("click", () => {
+      const range = document.createRange();
+      range.selectNode(output);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.execCommand("copy");
+    });
+
+    calculate();
+  </script>
+</body>
+</html>
