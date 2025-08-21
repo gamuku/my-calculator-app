@@ -19,6 +19,8 @@ Built as a single-page **HTML + JavaScript app** (no backend required).
 
 ## 📖 Example Inputs
 ```text
+10:00 - 11:50
+15:00:00 - 20:00:40
 1:30
 0:45:20
 90
