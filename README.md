@@ -1,2 +1,25 @@
-# my-calculator-app
-A simple, interactive web app to calculate total time from a list of time intervals. Paste or enter your time ranges, and instantly see the total duration in hours and minutes. No dependencies, works offline, and easy to use!
+# Work Duration aka Time Interval Calculator ⏱️
+
+A simple browser-based tool to calculate total time from multiple intervals.  
+Built as a single-page **HTML + JavaScript app** (no backend required).  
+
+---
+
+## 🚀 Features
+- Paste times in different formats:
+  - `HH:MM`
+  - `HH:MM:SS`
+  - Plain numbers (interpreted as minutes or seconds, toggle supported)
+- Toggle between **minutes mode** and **seconds mode** for plain numbers
+- Auto-calculates as you type or paste
+- Copy result with one click
+- Auto-select result text for quick manual copy
+
+---
+
+## 📖 Example Inputs
+```text
+1:30
+0:45:20
+90
+3600
