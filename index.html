@@ -1,89 +1,232 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Time Interval Calculator</title>
+  <meta charset="utf-8" />
+  <title>Work Duration / Time Interval Calculator</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    body { font-family: Arial, sans-serif; margin: 2em; }
-    textarea { width: 100%; height: 150px; }
-    .result { margin-top: 1em; font-size: 1.2em; }
-    button { margin-top: 0.5em; }
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f7fafc; color: #111; }
+    h1 { margin-bottom: 6px; }
+    textarea { width: 100%; height: 160px; padding: 10px; font-size: 14px; border-radius: 6px; border: 1px solid #ccd6dd; resize: vertical; }
+    .controls { margin-top: 10px; display:flex; gap: 8px; flex-wrap:wrap; align-items:center; }
+    .controls button, .controls .mode { padding:8px 12px; border-radius:6px; border:1px solid #cbd5e1; background:#fff; cursor:pointer; }
+    .note { margin-top: 8px; color:#555; font-size:13px; }
+    .result-box { margin-top: 14px; padding: 12px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; }
+    .result-line { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+    .result-value { font-weight:600; font-size:18px; user-select:text; cursor:pointer; }
+    .minutes-value { font-size:14px; color:#444; user-select:text; cursor:pointer; }
   </style>
 </head>
 <body>
-  <h1>Time Interval Calculator ⏱️</h1>
-  <p>Enter times (HH:MM, HH:MM:SS, or plain numbers):</p>
-  <textarea id="input"></textarea><br>
-  
-  <label>
-    <input type="radio" name="mode" value="minutes" checked>
-    Plain numbers = minutes
-  </label>
-  <label>
-    <input type="radio" name="mode" value="seconds">
-    Plain numbers = seconds
-  </label>
+  <h1>Work Duration / Time Interval Calculator ⏱️</h1>
+  <p>Enter one item per line. Lines can be durations (e.g. <code>1:30</code>, <code>0:45:20</code>, <code>90</code>) or time ranges (e.g. <code>10:00 - 10:20</code>). Plain numbers interpreted per mode.</p>
 
-  <div class="result">
-    <strong>Total:</strong> 
-    <span id="output">00:00:00</span>
-    (<span id="minutes">0 minutes</span>)
+  <textarea id="timeInput" placeholder="Examples:
+10:00 - 10:20
+10:40 - 10:50
+11:00 - 13:00
+1:30
+90"></textarea>
+
+  <div class="controls">
+    <div>
+      <label><input type="radio" name="numMode" value="minutes" checked> Plain numbers = minutes</label>
+      &nbsp;
+      <label><input type="radio" name="numMode" value="seconds"> Plain numbers = seconds</label>
+    </div>
+    <button id="pasteBtn">Paste from Clipboard</button>
+    <button id="clearBtn">Clear</button>
+    <button id="copyBtn">Copy Result</button>
   </div>
-  <button id="copyBtn">Copy Result</button>
+
+  <div class="note">Range format supports `-` (dash). If end < start, it assumes next day (cross-midnight).</div>
+
+  <div class="result-box">
+    <div class="result-line">
+      <div><strong>Total Time:</strong></div>
+      <div id="totalTime" class="result-value">--:--:--</div>
+    </div>
+    <div class="result-line">
+      <div><strong>Total Minutes:</strong></div>
+      <div id="totalMinutes" class="minutes-value">--</div>
+    </div>
+  </div>
 
   <script>
-    const input = document.getElementById('input');
-    const output = document.getElementById('output');
-    const minutesText = document.getElementById('minutes');
+    // --- Parsing utilities ---
+    const DAY_SECONDS = 24 * 3600;
+
+    // Parse a time-of-day like "10:00", "10:00:30", "10:00 am", "12:30 PM", "7"
+    function parseTimeOfDay(str) {
+      if (!str) return null;
+      let s = String(str).trim();
+      if (!s) return null;
+      const ampmMatch = s.match(/\\b(am|pm)\\b/i);
+      let ampm = null;
+      if (ampmMatch) {
+        ampm = ampmMatch[1].toLowerCase();
+        s = s.replace(/\\b(am|pm)\\b/i, '').trim();
+      }
+      const parts = s.split(':').map(p => p.trim()).filter(p => p !== '');
+      if (parts.length < 1 || parts.length > 3) return null;
+      const nums = parts.map(n => Number(n));
+      if (nums.some(n => !Number.isFinite(n))) return null;
+      let h=0,m=0,sec=0;
+      if (nums.length === 1) { h = nums[0]; }
+      else if (nums.length === 2) { h = nums[0]; m = nums[1]; }
+      else { h = nums[0]; m = nums[1]; sec = nums[2]; }
+      if (h < 0 || m < 0 || sec < 0 || m >= 60 || sec >= 60) return null;
+      if (ampm) {
+        if (ampm === 'am') {
+          if (h === 12) h = 0;
+        } else { // pm
+          if (h < 12) h += 12;
+        }
+      }
+      return h * 3600 + m * 60 + sec;
+    }
+
+    // Parse a duration line (not a range). Returns seconds or null.
+    // Accepts "H:MM", "H:MM:SS", or plain numbers (minutes/seconds).
+    function parseDurationLine(str, numberMode) {
+      if (!str) return null;
+      const s = String(str).trim();
+      if (!s) return null;
+      if (s.includes(':')) {
+        const parts = s.split(':').map(p => Number(p.trim()));
+        if (parts.some(n => !Number.isFinite(n))) return null;
+        if (parts.length === 2) {
+          return parts[0] * 3600 + parts[1] * 60;
+        } else if (parts.length === 3) {
+          return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        } else {
+          return null;
+        }
+      } else {
+        // plain number
+        const num = parseInt(s, 10);
+        if (isNaN(num)) return null;
+        return numberMode === 'minutes' ? num * 60 : num;
+      }
+    }
+
+    // Parse a single input line: detects ranges (start - end) or durations.
+    function parseLineToSeconds(line, numberMode) {
+      if (!line) return 0;
+      const raw = String(line).trim();
+      if (!raw) return 0;
+
+      // If contains a dash, treat as range: start - end
+      if (raw.match(/[-–—]/)) {
+        // split on the first dash, but allow multiple dashes in case (compose rest)
+        const parts = raw.split(/[-–—]/);
+        const startStr = (parts[0] || '').trim();
+        const endStr = parts.slice(1).join('-').trim(); // join rest in case extra dashes
+        const startSec = parseTimeOfDay(startStr);
+        const endSec = parseTimeOfDay(endStr);
+        if (startSec == null || endSec == null) return 0;
+        let diff = endSec - startSec;
+        if (diff < 0) diff += DAY_SECONDS; // cross midnight
+        return diff;
+      }
+
+      // Otherwise, treat as a duration input
+      const dur = parseDurationLine(raw, numberMode);
+      return dur || 0;
+    }
+
+    // --- UI wiring ---
+    const timeInput = document.getElementById('timeInput');
+    const totalTimeEl = document.getElementById('totalTime');
+    const totalMinutesEl = document.getElementById('totalMinutes');
+    const pasteBtn = document.getElementById('pasteBtn');
+    const clearBtn = document.getElementById('clearBtn');
     const copyBtn = document.getElementById('copyBtn');
-    const radios = document.querySelectorAll('input[name="mode"]');
+    const numModeRadios = document.getElementsByName('numMode');
 
-    function parseTime(str, mode) {
-      str = str.trim();
-      if (!str) return 0;
-      if (/^\d+$/.test(str)) {
-        let num = parseInt(str, 10);
-        return mode === "seconds" ? num : num * 60;
+    function getNumberMode() {
+      return Array.from(numModeRadios).find(r => r.checked).value;
+    }
+
+    function formatHMS(totalSeconds) {
+      if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return '--:--:--';
+      const h = Math.floor(totalSeconds / 3600);
+      const m = Math.floor((totalSeconds % 3600) / 60);
+      const s = totalSeconds % 60;
+      return [h,m,s].map(v => String(v).padStart(2,'0')).join(':');
+    }
+
+    function recalcAndRender() {
+      const lines = timeInput.value.split(/\\n/);
+      const mode = getNumberMode();
+      let total = 0;
+      for (const line of lines) {
+        try {
+          total += parseLineToSeconds(line, mode);
+        } catch (e) {
+          // safety: ignore line on error
+        }
       }
-      const parts = str.split(":").map(Number);
-      if (parts.length === 2) {
-        return parts[0] * 3600 + parts[1] * 60;
-      } else if (parts.length === 3) {
-        return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      if (total === 0) {
+        totalTimeEl.textContent = '--:--:--';
+        totalMinutesEl.textContent = '--';
+      } else {
+        totalTimeEl.textContent = formatHMS(total);
+        totalMinutesEl.textContent = String(Math.floor(total / 60));
       }
-      return 0;
     }
 
-    function formatTime(seconds) {
-      const h = String(Math.floor(seconds / 3600)).padStart(2, "0");
-      const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
-      const s = String(seconds % 60).padStart(2, "0");
-      return `${h}:${m}:${s}`;
-    }
-
-    function calculate() {
-      const mode = document.querySelector('input[name="mode"]:checked').value;
-      const lines = input.value.split(/\n+/);
-      let totalSeconds = 0;
-      for (const line of lines) totalSeconds += parseTime(line, mode);
-      output.textContent = formatTime(totalSeconds);
-      minutesText.textContent = Math.floor(totalSeconds / 60) + " minutes";
-    }
-
-    input.addEventListener("input", calculate);
-    radios.forEach(r => r.addEventListener("change", calculate));
-
-    copyBtn.addEventListener("click", () => {
-      const range = document.createRange();
-      range.selectNode(output);
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
-      document.execCommand("copy");
+    // Buttons
+    pasteBtn.addEventListener('click', async () => {
+      try {
+        const txt = await navigator.clipboard.readText();
+        timeInput.value = txt;
+        recalcAndRender();
+      } catch (e) {
+        alert('Failed to read clipboard.');
+      }
     });
 
-    calculate();
+    clearBtn.addEventListener('click', () => {
+      timeInput.value = '';
+      recalcAndRender();
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      const text = totalTimeEl.textContent;
+      if (!text || text === '--:--:--') return;
+      try {
+        await navigator.clipboard.writeText(text);
+        // small visual feedback
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => copyBtn.textContent = 'Copy Result', 1200);
+      } catch (e) {
+        alert('Copy failed.');
+      }
+    });
+
+    // auto-select on click for quick manual copy
+    totalTimeEl.addEventListener('click', () => {
+      const r = document.createRange();
+      r.selectNodeContents(totalTimeEl);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+    });
+    totalMinutesEl.addEventListener('click', () => {
+      const r = document.createRange();
+      r.selectNodeContents(totalMinutesEl);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+    });
+
+    // recalc on input or mode change
+    timeInput.addEventListener('input', recalcAndRender);
+    Array.from(numModeRadios).forEach(r => r.addEventListener('change', recalcAndRender));
+
+    // initial render
+    recalcAndRender();
   </script>
 </body>
 </html>
